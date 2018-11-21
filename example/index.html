@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en" id="html">
+
+<head>
+    <meta charset="UTF-8">
+    <title>save-html</title>
+    <link rel="stylesheet" href="./css/main.css">
+</head>
+
+<body>
+    <h2>save-thml</h2>
+    <div id="app">
+        {{message}}
+    </div>
+    <!-- 开发环境版本，包含了有帮助的命令行警告 -->
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="./js/main.js"></script>
+    <script type="text/javascript" src="../bundle.js"></script>
+    <script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            message: 'Hello Vue!'
+        }
+    })
+    var html = new saveToHtml('html', {'$vue': app})
+    html.save()
+    </script>
+</body>
+
+</html>
