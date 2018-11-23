@@ -1,10 +1,11 @@
 import commonjs from 'rollup-plugin-commonjs';
 import nodeResolve from 'rollup-plugin-node-resolve';
-// import babel from 'rollup-plugin-babel';
+import babel from 'rollup-plugin-babel';
+
 export default {
   // 核心选项
   input: './src/index.js',     // 必须
-  // external,
+  // external: ['jszip'],
   plugins: [
     nodeResolve({
       jsnext: true,
@@ -13,7 +14,7 @@ export default {
     commonjs({
       // non-CommonJS modules will be ignored, but you can also
       // specifically include/exclude files
-      include: ['node_modules/**'],  // Default: undefined
+      include: ['node_modules/**', 'src/lib/jszip.js'],  // Default: undefined
       // exclude: [ 'node_modules/foo/**', 'node_modules/bar/**' ],  // Default: undefined
       // these values can also be regular expressions
       // include: /node_modules/
@@ -54,11 +55,11 @@ export default {
 
   output: {  // 必须 (如果要输出多个，可以是一个数组)
     // 核心选项
-    file: 'bundle.js',    // 必须
+    file: './example/js/bundle.js',    // 必须
     format: 'iife',  // 必须
-    name: 'saveToHtml'
+    name: 'saveToHtml',
     // name,
-    // globals,
+    globals: {jszip: 'jszip'},
 
     // // 额外选项
     // paths,

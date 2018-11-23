@@ -28845,10 +28845,11 @@ var saveToHtml = (function () {
 	        this.filename = typeof filename === 'string' ? filename : '';
 	        this.opts = opts || {};
 	        this.cb = cb;
+	        this.origin ='';
 	        // this.outPutName = opts.outPutName || 'sava.html'
 	        // this.$vue = opts.$vue
 	        // this.vueMod = !!this.$vue
-
+	        this.url = '';
 	        this.html = '';
 	        this.deps = {};
 	        this.fileReg = {
@@ -28857,6 +28858,17 @@ var saveToHtml = (function () {
 	            img: /<img .*?src=\"(.+?)\"/g
 	        };
 
+	        // get url and origin 
+	        if (this.opts.url) {
+	            this.url = this.opts.url.substr(-1, 1) === '/' ? this.opts.url.substr(-1) : this.opts.url;
+	            let originReg = this.url.match(/^.+(\.com|\.cn|\.com\.cn|\.net)+?/);
+	            console.log(originReg);
+	            this.origin = originReg ? originReg[0] : document.origin; 
+
+	        } else {
+	            this.url = window.href; 
+	            this.origin = document.origin; 
+	        }
 	        this.zip = new jszip();
 	        this.getHtml(() => {
 	            this.resolve();
@@ -28881,7 +28893,7 @@ var saveToHtml = (function () {
 	    //  //保存
 	    // }
 	    getHtml(callback) {
-	        let url = this.opts.url;
+	        let url = this.url;
 	        if (url) {
 	            request(url, (res) => {
 	                this.html = res;
@@ -28918,7 +28930,9 @@ var saveToHtml = (function () {
 	                    let filenameArr = filename.split('/');
 	                    filename = filenameArr.pop();
 	                    if (!filename) filename = filenameArr.pop();
-	                    let newFile = './' + filename + '.' + suffix;
+	                    filename = filename + '.' + suffix;
+	                    let newFile = './' + filename;
+	                    // newFile = newFile.substr(0, 1) == '.' ? newFile : newFile + '/'
 	                    this.deps[newFile] = file;
 	                }
 	            } while (res)
@@ -28933,6 +28947,9 @@ var saveToHtml = (function () {
 	        let depsLen = depsArr.length;
 	        depsArr.forEach(newFile => {
 	            let oldFile = this.deps[newFile];
+	            let origin = this.origin; 
+	            if (/^[\.\/]/.test(oldFile)) oldFile = origin + oldFile.replace(/^(\.\/|\/)/, '/');
+	                console.log(oldFile);
 	            request(oldFile, (res, url) => {
 	                ++count.num;
 	                this.zip.file(newFile.substr(2), res);

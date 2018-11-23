@@ -15,7 +15,7 @@
     <!-- 开发环境版本，包含了有帮助的命令行警告 -->
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <script src="./js/main.js"></script>
-    <script type="text/javascript" src="../bundle.js"></script>
+    <script type="text/javascript" src="./js/bundle.js"></script>
     <script>
     var app = new Vue({
         el: '#app',
@@ -23,8 +23,7 @@
             message: 'Hello Vue!'
         }
     })
-    var html = new saveToHtml('html', {'$vue': app})
-    html.save()
+    var html = new saveToHtml('html', {url: 'https://www.baidu.com'})
     </script>
 </body>
 
