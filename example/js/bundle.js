@@ -28840,80 +28840,69 @@ var saveToHtml = (function () {
 	 * @param {Function} cb       []
 	 */
 	class SaveToHtml {
-	    constructor(filename, opts, cb) {
+	    constructor(filename, opts) {
 	        console.log(this);
 	        this.filename = typeof filename === 'string' ? filename : '';
 	        this.opts = opts || {};
-	        this.cb = cb;
-	        this.origin ='';
+	        this.origin = '';
 	        // this.outPutName = opts.outPutName || 'sava.html'
 	        // this.$vue = opts.$vue
 	        // this.vueMod = !!this.$vue
 	        this.url = '';
 	        this.html = '';
-	        this.deps = {};
-	        this.fileReg = {
-	            css: /<link .*?href=\"(.+?)\"/g,
-	            js: /<script.*? src=\"(.+?)\"/g,
-	            img: /<img .*?src=\"(.+?)\"/g
-	        };
+	        this._deps = {},
+	        this._deps_added = {};
+	        this._tpl_replaced = [];
+	            this.subDeps = {},
+	            this.fileReg = {
+	                css: /<link .*?href=\"(.+?)\"/g,
+	                js: /<script.*? src=\"(.+?)\"/g,
+	                img: /<img .*?src=\"(.+?)\"/g,
+	                // url: /url(.*)/g,
+	            };
 
 	        // get url and origin 
 	        if (this.opts.url) {
 	            this.url = this.opts.url.substr(-1, 1) === '/' ? this.opts.url.substr(-1) : this.opts.url;
 	            let originReg = this.url.match(/^.+(\.com|\.cn|\.com\.cn|\.net)+?/);
 	            console.log(originReg);
-	            this.origin = originReg ? originReg[0] : document.origin; 
+	            this.origin = originReg ? originReg[0] : document.origin;
 
 	        } else {
-	            this.url = window.href; 
-	            this.origin = document.origin; 
+	            this.url = window.href;
+	            this.origin = document.origin;
 	        }
 	        this.zip = new jszip();
-	        this.getHtml(() => {
-	            this.resolve();
-	            this.requestDeps();
-	        });
-
 	    }
-	    // download 
-	    // createTemplate () {
-	    //  let templ = ''
-	    //  let doc = this.doc
-	    //  let vueOjectStr = this.$vue.toString()
-
-	    //  let script = document.createElement('script')
-	    //  script.type = 'text/javascript'
-	    //  script.innerHTML = 'var $vue = JSON.parse(' + vueOjectStr + ')'
-	    //  doc.appendChild(script)
-	    //  this.html = templ = doc.innerHTML
-	    //  //将$vue转为json字符
-	    //  //在html模板中插入sript标签
-	    //  //将json字符串作为变量存入，然后转为对象
-	    //  //保存
-	    // }
 	    getHtml(callback) {
 	        let url = this.url;
-	        if (url) {
-	            request(url, (res) => {
-	                this.html = res;
-	                if (typeof callback === 'function') callback();
-	            });
-	        } else {
-	            this.html = document.documentElement.innerHTML;
-	            if (typeof callback === 'function') callback();
-	        }
-	    }
-	    resolve() {
+	        return new Promise((resolve, reject) => {
+	            if (url) {
+	                request(url, (res) => {
+	                    this.html = res;
+	                    resolve();
+	                }, (err) => {
+	                    reject(err.message);
+	                });
+	            } else {
+	                this.html = document.documentElement.innerHTML;
+	                resolve();
+	            }
+	        })
 
+	    }
+	    addDeps(depObj) {
+	        if (typeof depObj !== 'object') return
+	        this._deps_added = { ...this._deps_added, ...depObj };
+	    }
+	    resolve(_tpl) {
 	        let tpl = this.html;
 	        let fileReg = this.fileReg;
 	        Object.keys(fileReg).forEach(fileType => {
 	            let reg = fileReg[fileType];
 	            regFile.call(this, fileType, tpl);
 	        });
-	        console.log(this.deps);
-
+	        console.log(this._deps);
 	        function regFile(fileType, string) {
 	            // save to this.deps[fileType]
 	            let reg = fileReg[fileType];
@@ -28924,70 +28913,116 @@ var saveToHtml = (function () {
 	                if (!res) return
 	                let file = res[1];
 	                if (file) {
-	                    let filePathArr = file.split('.');
-	                    let suffix = filePathArr.pop();
-	                    let filename = filePathArr.pop();
-	                    let filenameArr = filename.split('/');
-	                    filename = filenameArr.pop();
-	                    if (!filename) filename = filenameArr.pop();
-	                    filename = filename + '.' + suffix;
-	                    let newFile = './' + filename;
-	                    // newFile = newFile.substr(0, 1) == '.' ? newFile : newFile + '/'
-	                    this.deps[newFile] = file;
+	                    if (!~file.indexOf('data:image')) {
+	                        let filePathArr = file.split('/');
+	                        let filename = filePathArr.pop();
+	                        let fileNameArr = filename.split('.');
+	                        let suffix = fileNameArr.pop() || '';
+	                        let newFile = './' + filename;
+	                        this._deps[newFile] = file;
+	                    }
+
 	                }
 	            } while (res)
 	        }
-
 	    }
-	    requestDeps(callback) {
+	    // resolve_deep_deps () {
+	    //     Object.keys(this._deps).forEach(depFile => {
+	    //         let originFile = this._deps[depFile]
+	    //         if (originFile.split('.').pop() == 'css') {
+	    //             requset(originFile, () => {
+
+	    //             })
+	    //         }
+	    //     })
+	    // }
+	    // resolveCssUrl (fileStr) {
+	    //    let res = this.fileReg.url.exec(fileStr)
+	    //    let file = res[1]
+	    //    if (file) {
+
+	    //    }
+	    // },
+	    _requestDeps(callback) {
 	        // deps -> request -> save(newName hash one fold) -> changeDepsName ->  replace tplName -> save tpl
 	        //this.deps
 	        let count = { num: 0 };
-	        let depsArr = Object.keys(this.deps);
+	        let depsArr = Object.keys(this._deps);
 	        let depsLen = depsArr.length;
 	        depsArr.forEach(newFile => {
-	            let oldFile = this.deps[newFile];
-	            let origin = this.origin; 
+	            let oldFile = this._deps[newFile];
+	            let origin = this.origin;
 	            if (/^[\.\/]/.test(oldFile)) oldFile = origin + oldFile.replace(/^(\.\/|\/)/, '/');
-	                console.log(oldFile);
+	            console.log(oldFile);
 	            request(oldFile, (res, url) => {
 	                ++count.num;
 	                this.zip.file(newFile.substr(2), res);
 	                if (count.num >= depsLen /*depsLen*/ ) {
-	                    this.replaceTpl();
-	                    this.saveAs();
 	                    if (typeof callback === 'function') callback(res, url);
 	                }
 	            }, (err) => {
 	                ++count.num;
 	                if (count.num >= depsLen /*depsLen*/ ) {
-	                    this.replaceTpl();
-	                    this.saveAs();
 	                    if (typeof callback === 'function') callback(res, url);
 	                }
 	            });
 	        });
 	    }
-	    replaceTpl() {
+	    _replaceTpl() {
+	        debugger
 	        let html = this.html;
-	        Object.keys(this.deps).forEach((newFile) => {
-	            let oldFile = this.deps[newFile];
+	        Object.keys(this._deps).forEach((newFile) => {
+	            let oldFile = this._deps[newFile];
 	            html = html.replace(new RegExp(oldFile, 'g'), newFile);
 	        });
 	        this.html = html;
 	        this.zip.file('index.html', html);
 
 	    }
-
-	    saveAs() {
-	        let self = this;
-	        this.zip.generateAsync({ type: 'string' }).then(function(content) {
-	            download(content, self.filename + '.zip', 'application/zip');
-	        });
-
-	        //download(this.html, this.outPutName, this.mimeType)
+	    /**
+	     * [replaceTpl description]
+	     * @param  {Function} callback (tpl) => tpl
+	     * @return {[type]}            [description]
+	     */
+	    add_replace(replaceFn) {
+	        if (typeof replaceFn !== 'function') return
+	        this._tpl_replaced.push(replaceFn);
 	    }
+
+	    saveAs(filename) {
+	      
+	        debugger
+	        // if ( typeof this.addDeps === 'function') {
+	        //     this.addDeps()
+	        // }
+	        this.getHtml().then(res => {
+	            this.resolve();
+	            this._deps = { ...this._deps, ...this._deps_added };
+	            this._requestDeps(() => {
+	            this._tpl_replaced.forEach(rF => {
+	                this.html = rF(this.html);
+	            });
+	            this._replaceTpl();
+	            this.zip.generateAsync({ type: 'string' }).then((content) => {
+	                    download(content, (filename || this.filename) + '.zip', 'application/zip');
+	                });
+	            });
+	        });
+	    }
+
 	}
+
+	//调用场景
+	//let save = new saveHtml('abc', {url: 'www.baidu.com', otherDeps: [{css: 'abc.css'}]})
+	//添加额外的依赖
+	// save.addDeps({'origin/static/abc.css': 'abc.css', 'origin/static/abc.img': './abc.img'}) 
+	// save.saveas('abc.zip')
+
+	//save.resolve(callback(err, next) {
+	//
+	//})
+	//在save之前，对模板进行自定义的更改
+	//
 
 	return SaveToHtml;
 
